@@ -379,7 +379,7 @@ const Home: React.FC = () => {
   };
 
   return (
-    <>
+    <div className="bg-gradient-to-b from-gray-100 to-gray-200 min-h-screen">
       <div className="max-w-screen-xl mx-auto p-4 lg:px-8">
         <div className="sticky top-0 bg-white z-40 pb-3">
           <div className="flex flex-wrap md:justify-between mb-6">
@@ -390,7 +390,7 @@ const Home: React.FC = () => {
               {userName && (
                 <>
                   <img
-                    className="w-[3rem] h-[3rem] rounded-full cursor-pointer transform hover:scale-110 shadow-lg"
+                    className="w-12 h-12 rounded-full cursor-pointer transform hover:scale-110 shadow-lg"
                     src={userAvatar}
                     alt={userName}
                     onClick={handleLogin}
@@ -402,7 +402,7 @@ const Home: React.FC = () => {
               )}
               {!userName && (
                 <div className="flex gap-3 self-center mx-auto md:mx-0">
-                  <div className="w-[3rem] h-[3rem] bg-gray-300 rounded-full flex items-center justify-center">
+                  <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
                     <span className="text-gray-600">Avatar</span>
                   </div>
                   <p className="self-center text-[#092C4C] text-lg xl:text-2xl">
@@ -632,7 +632,7 @@ const Home: React.FC = () => {
         </div>
       </div>
       {isModalOpen && <LoginSignupModal closeModal={closeModal} />}
-    </>
+    </div>
   );
 };
 
