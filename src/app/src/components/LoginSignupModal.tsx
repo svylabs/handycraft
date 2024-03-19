@@ -10,7 +10,6 @@ const LoginSignupModal = ({ closeModal }: { closeModal: () => void }) => {
 
     // Add event listener to handle clicks outside the modal
     const handleOutsideClick = (event: MouseEvent) => {
-      console.log("first")
       if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
         closeModal();
       }

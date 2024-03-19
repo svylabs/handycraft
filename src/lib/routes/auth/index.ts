@@ -113,20 +113,17 @@ githubRouter.get(
   authenticatedUser,
   async (req: Request, res: Response) => {
     const session = req.session as CustomSession;
-    //   if (req.cookies.userid) {
+    console.log(session);
     if (session.userid !== undefined) {
       const userid = session.userid;
-      // const userid: string = req.cookies.userid;
       const datastore = getDatastore();
       const key = datastore.key(["User", userid]);
       const result = await datastore.get(key);
-      // datastore.get(key).then((result: any) => {
       if (result[0]) {
         res.send(result[0]);
       } else {
         res.status(401).send({ message: "User not found in DB" });
       }
-      // });
     } else {
       res.status(401).send({ message: "User not found in session" });
     }
@@ -164,10 +161,9 @@ githubRouter.get("/github/callback", async (req, res, next) => {
   try {
     addUserToSession(req, res, userDetail);
     await addUserToDatastore(userDetail);
-
     // res.redirect("/");
-    res.redirect("https://handycraft-415122.oa.r.appspot.com/converter/Custom%20Components");
-    // res.redirect("http://localhost:5173/converter/Custom%20Components");
+    // res.redirect("https://handycraft-415122.oa.r.appspot.com/converter/Custom%20Components");
+    res.redirect("http://localhost:5173/");
   } catch (error) {
     next(error);
   }
