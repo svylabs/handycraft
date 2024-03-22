@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import "./Home.scss";
 import { FiTrash2 } from "react-icons/fi";
 import LoginSignupModal from "./LoginSignupModal";
-import { BASE_API_URL } from "./constants";
 
 interface Converter {
   id: string;
@@ -30,20 +29,12 @@ const Home: React.FC = () => {
   >([]);
   const [userName, setUserName] = useState("");
   const [userAvatar, setUserAvatar] = useState("");
+  
 
   useEffect(() => {
-
-    const storedRecentTools = localStorage.getItem("recentTools");
-    if (storedRecentTools) {
-      setRecentTools(JSON.parse(storedRecentTools));
-      setActiveCategory("recent");
-    } else {
-      setActiveCategory("all");
-    }
-
     // Fetch dynamic components
-    fetch(`${BASE_API_URL}/dynamic-component/new`)
-    // fetch(`${process.env.VITE_API_BASE_URL}/dynamic-component/new`)
+    // fetch("http://localhost:8080/dynamic-component/new")
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/dynamic-component/new`)
       .then((response) => response.json())
       .then((data: DynamicComponent[]) => {
         setDynamicComponents(data);
@@ -58,17 +49,16 @@ const Home: React.FC = () => {
 
   const fetchUserData = async () => {
     try {
-      const response = await fetch(`${BASE_API_URL}/auth/user`, {
-        // const response = await fetch(`${process.env.VITE_API_BASE_URL}/auth/user`, {
+      // const response = await fetch("http://localhost:8080/auth/user", {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/user`, {
         credentials: "include",
       });
       if (response.ok) {
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {
           const userData = await response.json();
-          setUserName(userData.name);
+          setUserName(userData.login);
           setUserAvatar(userData.avatar_url);
-          localStorage.setItem("userDetails", JSON.stringify(userData));
         } else {
           console.error("Response is not valid JSON");
         }
@@ -209,6 +199,16 @@ const Home: React.FC = () => {
   const closeModal = () => {
     setIsModalOpen(false);
   };
+
+  useEffect(() => {
+    const storedRecentTools = localStorage.getItem("recentTools");
+    if (storedRecentTools) {
+      setRecentTools(JSON.parse(storedRecentTools));
+      setActiveCategory("recent");
+    } else {
+      setActiveCategory("all");
+    }
+  }, []);
 
   const addToRecentTools = (toolId: string) => {
     const updatedRecentTools = [
@@ -379,7 +379,7 @@ const Home: React.FC = () => {
   };
 
   return (
-    <>
+    <div className="bg-gradient-to-b from-gray-100 to-gray-200 min-h-screen">
       <div className="max-w-screen-xl mx-auto p-4 lg:px-8">
         <div className="sticky top-0 bg-white z-40 pb-3">
           <div className="flex flex-wrap md:justify-between mb-6">
@@ -387,10 +387,10 @@ const Home: React.FC = () => {
               Converter App / HandyCraft
             </h1>
             <div className="flex gap-3 self-center mx-auto md:mx-0">
-              {userName !== "" && (
+              {userName && (
                 <>
                   <img
-                    className="w-[3rem] h-[3rem] rounded-full cursor-pointer transform hover:scale-110 shadow-lg"
+                    className="w-12 h-12 rounded-full cursor-pointer transform hover:scale-110 shadow-lg"
                     src={userAvatar}
                     alt={userName}
                     onClick={handleLogin}
@@ -400,9 +400,9 @@ const Home: React.FC = () => {
                   </p>
                 </>
               )}
-              {userName === "" && (
+              {!userName && (
                 <div className="flex gap-3 self-center mx-auto md:mx-0">
-                  <div className="w-[3rem] h-[3rem] bg-gray-300 rounded-full flex items-center justify-center">
+                  <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
                     <span className="text-gray-600">Avatar</span>
                   </div>
                   <p className="self-center text-[#092C4C] text-lg xl:text-2xl">
@@ -632,7 +632,7 @@ const Home: React.FC = () => {
         </div>
       </div>
       {isModalOpen && <LoginSignupModal closeModal={closeModal} />}
-    </>
+    </div>
   );
 };
 

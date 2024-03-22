@@ -14,6 +14,7 @@
     "test": "c8 mocha -p -j 2 test/*.test.js --exit",
     "lint": "gts lint",
     "start": "node ./dist/src/index.js",
+    "dev": "SET NODE_ENV=development && node ./dist/src/index.js",
     "deploy": "gcloud app deploy",
     "clean": "gts clean",
     "compile": "tsc -p .",

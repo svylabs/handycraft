@@ -89,4 +89,5 @@ const server = app.listen(PORT, () => {
   //printAvailableAPIs();
 });
 
+console.log(process.env.NODE_ENV)
 export = server;

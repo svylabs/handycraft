@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import flower from "../../photos/flower.png";
 import "./ActionPage.scss";
@@ -10,10 +11,10 @@ interface Output {
 
 const ActionPage = ({ output }) => {
   const [components, setComponents] = useState(output);
-  const [inputValues, setInputValues] = useState<{ [key: string]: string }>({});
   const [outputCode, setOutputCode] = useState<Output | string>();
   const [outputFormat, setOutputFormat] = useState<string>("json");
   const [popup, setPopup] = useState(false);
+  const [data, setData] = useState<{ [key: string]: any }>({});
 
   const savedFormDataString = localStorage.getItem("formData");
   const savedFormData = savedFormDataString
@@ -26,20 +27,26 @@ const ActionPage = ({ output }) => {
   }, []);
 
   const handleInputChange = (id: string, value: string) => {
-    setInputValues((prevInputValues) => ({
-      ...prevInputValues,
+    setData((prevValues) => ({
+      ...prevValues,
       [id]: value,
     }));
   };
 
-  const handleRun = async (
-    code: string,
-    inputValues: { [key: string]: string }
-  ) => {
+  const handleRun = async (code: string, data: { [key: string]: string }) => {
     try {
       const result = await eval(code);
+      let vals = data;
+      if (typeof result === "object") {
+        for (const key in result) {
+          vals[key] = result[key];
+        }
+        setData(vals);
+      }
+      console.log(vals);
       console.log(result);
-      setOutputCode(result);
+      setOutputCode(vals);
+      // setOutputCode(result);
     } catch (error) {
       console.log(`Error: ${error}`);
       setOutputCode(`Error: ${error}`);
@@ -115,10 +122,12 @@ const ActionPage = ({ output }) => {
       }
 
       localStorage.removeItem("formData");
+      localStorage.removeItem("components");
       setPopup(true);
       setTimeout(() => {
         setPopup(false);
-        redirect("/");
+        // redirect("/");
+        window.location.href = "/";
       }, 5000);
     } catch (error) {
       console.error("Error saving data:", error);
@@ -126,23 +135,24 @@ const ActionPage = ({ output }) => {
   };
 
   const goBack = (components) => {
-    const queryParams = new URLSearchParams({
-      components: JSON.stringify(components),
-    });
-    window.location.href = `${BASE_API_URL}/converter/configure/configureDetails/configureInputOutput?${queryParams}`;
+    
+    // window.location.href = `/app/new`;
+    window.location.href = `/converter/configure/configureDetails/configureInputOutput`;
   };
 
   return (
     <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 shadow-lg rounded-md flex flex-col gap-5 p-2 m-2 mt-3 md:m-5 md:p-5 lg:mt-8 lg:p-6 lg:mx-20 xl:mt-16 xl:mx-40 lg:p- xl:p-12">
       <div className="p-2 md:p-4 bg-gray-100">
         <div className="flex justify-between mb-4">
-          <h1 className="text-xl md:text-2xl font-bold">Added Components:</h1>
+          <h1 className="text-xl md:text-2xl font-bold">
+            Showing preview of the {savedFormData.title} app
+          </h1>
           <button
             className="common-button px-4 py-2 text-white font-semibold bg-blue-500 rounded-md focus:bg-blue-600 focus:outline-none hover:bg-blue-600 hover:shadow-lg transition duration-300"
             onClick={() => goBack(components)}
           >
-            <span className="absolute text-hover text-white font-medium mt-10 -ml-10 px-2 bg-slate-500 p-1 rounded-md z-50">
-              Return to I/O
+            <span className="absolute text-hover text-white font-medium mt-10 -ml-10 mr-2 md:mr-10 lg:-ml-20 px-2 bg-slate-500 p-1 rounded-md z-50">
+              Return to edit the app
             </span>
             Back
           </button>
@@ -163,7 +173,7 @@ const ActionPage = ({ output }) => {
                     className="w-full px-4  p-2 mt-1 border bg-slate-200 border-gray-300 rounded focus:outline-none"
                     type={component.type}
                     id={component.id}
-                    value={inputValues[component.id] || ""}
+                    value={data[component.id] || ""}
                     onChange={(e) =>
                       handleInputChange(component.id, e.target.value)
                     }
@@ -174,7 +184,7 @@ const ActionPage = ({ output }) => {
                 <button
                   className="px-4 p-2 mt-2 font-semibold w-full md:w-40 overflow-x-hidden text-white bg-red-500 border border-red-500 rounded hover:bg-red-600 focus:outline-none focus:ring focus:border-red-700"
                   id={component.id}
-                  onClick={() => handleRun(component.code!, inputValues)}
+                  onClick={() => handleRun(component.code!, data)}
                 >
                   {component.label}
                 </button>
@@ -221,7 +231,7 @@ const ActionPage = ({ output }) => {
       </div>
 
       {popup && (
-        <div className="popupThanks flex flex-col justify-center items-center -ml-[1rem] md:-ml-[2.5rem] lg:-ml-[6.5rem] xl:-ml-[11.5rem] fixed bg-[#000000b3] top-0 w-[100vw] h-[100vh]">
+        <div className="popupThanks flex flex-col justify-center items-center -ml-[1rem] md:-ml-[2.5rem] lg:-ml-[6.5rem] xl:-ml-[13rem] fixed bg-[#000000b3] top-0 w-[100vw] h-[100vh]">
           <div className="bg-white rounded-md font-serif p-1 py-8 md:p-2 md:w-[25rem] md:h-[20rem] lg:w-[30rem] xl:p-4 flex flex-col justify-center items-center">
             <img
               src={flower}
@@ -232,8 +242,8 @@ const ActionPage = ({ output }) => {
               Congratulations!
             </p>
             <p className="lg:text-lg xl:text-xl text-[#85909B] text-center">
-              Fantastic work! Your custom components have been seamlessly
-              integrated.
+              Fantastic work! Your app has been created and submitted for
+              review.
             </p>
             <p className="md:mt-2 text-green-600 text-lg lg:text-xl text-center">
               Keep innovating and sharing your creativity!
