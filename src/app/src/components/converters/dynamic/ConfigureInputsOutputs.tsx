@@ -5,6 +5,15 @@ import arrow from "../../photos/angle-right-solid.svg";
 import preview from "../../photos/eye-regular.svg";
 import edit from "../../photos/pen-to-square-solid.svg";
 
+const saveDataToLocalStorage = (key, data) => {
+  localStorage.setItem(key, JSON.stringify(data));
+};
+
+const getDataFromLocalStorage = (key) => {
+  const data = localStorage.getItem(key);
+  return data ? JSON.parse(data) : null;
+};
+
 interface CustomComponent {
   id: string;
   label: string;
@@ -14,10 +23,6 @@ interface CustomComponent {
 }
 
 const ConfigureInputsOutputs: React.FC = () => {
-  const queryParams = new URLSearchParams(window.location.search);
-  const savedComponents = JSON.parse(queryParams.get('components') || '[]');
-  const [components, setComponents] = useState<CustomComponent[]>(savedComponents);
-  const [inputValues, setInputValues] = useState<{ [key: string]: string }>({});
   const [currentComponent, setCurrentComponent] = useState<CustomComponent>({
     id: "",
     label: "",
@@ -25,10 +30,21 @@ const ConfigureInputsOutputs: React.FC = () => {
     placement: "input",
     code: "",
   });
+  const [components, setComponents] = useState<CustomComponent[]>([]);
+  const [inputValues, setInputValues] = useState<{ [key: string]: string }>({});
   const [showOutput, setShowOutput] = useState<boolean>(false);
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
   const [editIndex, setEditIndex] = useState<number>(-1);
+
+  useEffect(() => {
+    const savedComponents = getDataFromLocalStorage("components");
+    if (savedComponents && Array.isArray(savedComponents)) {
+      setComponents(savedComponents);
+    }
+  }, []);
   
+  
+
   const handleEditComponent = (index: number) => {
     setIsEditMode(true);
     setEditIndex(index);
@@ -41,11 +57,21 @@ const ConfigureInputsOutputs: React.FC = () => {
     >
   ) => {
     const { name, value } = e.target;
-    setCurrentComponent((prevState) => ({
-      ...prevState,
-      [name]: value,
-    }));
+ 
+    if (((name === "placement") && (value === "action" || value === "output")) && currentComponent.type === "text") {
+      setCurrentComponent((prevState) => ({
+        ...prevState,
+        [name]: value,
+        type: "button",
+      }));
+    } else {
+      setCurrentComponent((prevState) => ({
+        ...prevState,
+        [name]: value,
+      }));
+    }
   };
+  
 
   const handleAddComponent = () => {
     if (!currentComponent.id.trim() || !currentComponent.label.trim()) {
@@ -53,29 +79,40 @@ const ConfigureInputsOutputs: React.FC = () => {
       return;
     }
   
-    if (components.some(component => component.id.trim() === currentComponent.id.trim() && components.indexOf(component) !== editIndex)) {
-      alert("Field with the same ID already exists. Please use a different ID.");
+    if ((currentComponent.placement === "action" || currentComponent.placement === "output") && !currentComponent.code?.trim()) {
+      alert("Please provide code for action/output placement.");
       return;
     }
   
-    if (currentComponent.type === "button" && !currentComponent.code?.trim()) {
-      alert("Please provide code for Button type.");
-      return;
-    }
-  
-    if (isEditMode) {
-      const updatedComponents = [...components];
+    const updatedComponents = [...components];
+    if (isEditMode && editIndex !== -1) {
       updatedComponents[editIndex] = currentComponent;
-      setComponents(updatedComponents);
       setIsEditMode(false);
       setEditIndex(-1);
     } else {
-      setComponents((prevState) => [...prevState, currentComponent]);
-      setInputValues((prevInputValues) => ({
-        ...prevInputValues,
-        [currentComponent.id]: "",
-      }));
+      if (
+        updatedComponents.some(
+          (component) =>
+            component.id.trim() === currentComponent.id.trim() &&
+            updatedComponents.indexOf(component) !== editIndex
+        )
+      ) {
+        alert(
+          "Field with the same ID already exists. Please use a different ID."
+        );
+        return;
+      }
+      updatedComponents.push(currentComponent);
     }
+  
+    setComponents(updatedComponents);
+    setInputValues((prevInputValues) => ({
+      ...prevInputValues,
+      [currentComponent.id]: "",
+    }));
+  
+    saveDataToLocalStorage("components", updatedComponents);
+  
     setCurrentComponent({
       id: "",
       label: "",
@@ -83,7 +120,7 @@ const ConfigureInputsOutputs: React.FC = () => {
       placement: "input",
       code: "",
     });
-  };  
+  };
   
 
   const handlePreview = async () => {
@@ -107,7 +144,9 @@ const ConfigureInputsOutputs: React.FC = () => {
       delete updatedInputValues[id];
       return updatedInputValues;
     });
+    saveDataToLocalStorage("components", components.filter((component) => component.id !== id));
   };
+  
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const numbersRef = useRef<HTMLDivElement>(null);
@@ -141,6 +180,8 @@ const ConfigureInputsOutputs: React.FC = () => {
   if (showOutput) {
     return <ActionPage output={components} />;
   }
+  // console.log("Placement:", currentComponent.placement);
+  // console.log("Type:", currentComponent.type);
 
   return (
     <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 shadow-lg rounded-md flex flex-col gap-5 p-2 m-2 mt-3 md:m-5 md:p-5 lg:mt-8 lg:p-6 lg:mx-20 xl:mt-16 xl:mx-40 lg:p- xl:p-12">
@@ -160,21 +201,72 @@ const ConfigureInputsOutputs: React.FC = () => {
             Configure inputs / outputs
           </p>
         </div>
+
         <label className="block mb-2 mt-5 text-[#727679] font-semibold text-lg xl:text-xl">
-          Type:
-          <select
-            className="block w-full p-2 mt-1 bg-white border border-gray-300 rounded-md focus:outline-none"
-            name="type"
-            value={currentComponent.type}
-            onChange={handleChange}
-          >
-            <option value="text">Text</option>
-            <option value="number">Number</option>
-            <option value="image">Image</option>
-            <option value="file">File</option>
-            <option value="button">Button</option>
-          </select>
-        </label>
+        Placement:
+        <select
+          className="block w-full p-2 mt-1 bg-white border border-gray-300 rounded-md focus:outline-none"
+          name="placement"
+          value={currentComponent.placement}
+          onChange={handleChange}
+        >
+          <option value="input">Input</option>
+          <option value="action">Action</option>
+          <option value="output">Output</option>
+        </select>
+      </label>
+      {currentComponent.placement === "input" && (
+          <div>
+            <label className="block mb-2 mt-5 text-[#727679] font-semibold text-lg xl:text-xl">
+              Type:
+              <select
+                className="block w-full p-2 mt-1 bg-white border border-gray-300 rounded-md focus:outline-none"
+                name="type"
+                value={currentComponent.type}
+                onChange={handleChange}
+              >
+                <option value="text">Text</option>
+                <option value="number">Number</option>
+                <option value="file">File</option>
+              </select>
+            </label>
+          </div>
+        )}
+
+        {currentComponent.placement === "action" && (
+          <div>
+            <label className="block mb-2 mt-5 text-[#727679] font-semibold text-lg xl:text-xl">
+              Type:
+              <select
+                className="block w-full p-2 mt-1 bg-white border border-gray-300 rounded-md focus:outline-none"
+                name="type"
+                value={currentComponent.type}
+                onChange={handleChange}
+              >
+                <option value="button">Button</option>
+              </select>
+            </label>
+          </div>
+        )}
+
+        {currentComponent.placement === "output" && (
+          <div>
+            <label className="block mb-2 mt-5 text-[#727679] font-semibold text-lg xl:text-xl">
+              Type:
+              <select
+                className="block w-full p-2 mt-1 bg-white border border-gray-300 rounded-md focus:outline-none"
+                name="type"
+                value={currentComponent.type}
+                onChange={handleChange}
+              >
+                <option value="text">Text</option>
+                <option value="json">JSON</option>
+                <option value="table">Table</option>
+                <option value="graph">Graph</option>
+              </select>
+            </label>
+          </div>
+        )}
 
         <label className="block mb-2 text-[#727679] font-semibold text-lg xl:text-xl">
           Label:
@@ -200,38 +292,8 @@ const ConfigureInputsOutputs: React.FC = () => {
           />
         </label>
 
-
-        {currentComponent.type !== "button" && (
-          <label className="block mb-2 text-[#727679] font-semibold text-lg xl:text-xl">
-            Placement:
-            <select
-              className="block w-full p-2 mt-1 bg-white border border-gray-300 rounded-md focus:outline-none"
-              name="placement"
-              value={currentComponent.placement}
-              onChange={handleChange}
-            >
-              <option value="input">Input</option>
-              <option value="output">Output</option>
-              <option value="action">Action</option>
-            </select>
-          </label>
-        )}
-
-        {currentComponent.type === "button" && (
+        {(currentComponent.placement === "action" || currentComponent.placement === "output") && (
           <div>
-            <label className="block mb-2 text-[#727679] font-semibold text-lg xl:text-xl">
-              Placement:
-              <select
-                className="block w-full p-2 mt-1 bg-white border border-gray-300 rounded-md focus:outline-none"
-                name="placement"
-                value={currentComponent.placement}
-                onChange={handleChange}
-              >
-                <option value="output">Output</option>
-                <option value="action">Action</option>
-              </select>
-            </label>
-
             <label className="block mb-2 text-[#727679] font-semibold text-lg xl:text-xl">
               Code:
             </label>
@@ -279,12 +341,14 @@ const ConfigureInputsOutputs: React.FC = () => {
                         {component.label}:
                       </label>
                       <div className="flex gap-3 md:gap-5">
-                      <button onClick={() => handleEditComponent(index)}><img src={edit} alt="edit"></img></button>
-                      <button
-                        onClick={() => handleDeleteComponent(component.id)}
-                      >
-                        <img src={trash} alt="trash"></img>
-                      </button>
+                        <button onClick={() => handleEditComponent(index)}>
+                          <img src={edit} alt="edit"></img>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteComponent(component.id)}
+                        >
+                          <img src={trash} alt="trash"></img>
+                        </button>
                       </div>
                     </div>
                     <input
@@ -306,12 +370,14 @@ const ConfigureInputsOutputs: React.FC = () => {
                         {component.label}:
                       </label>
                       <div className="flex gap-3 md:gap-5">
-                      <button onClick={() => handleEditComponent(index)}><img src={edit} alt="edit"></img></button>
-                      <button
-                        onClick={() => handleDeleteComponent(component.id)}
-                      >
-                        <img src={trash} alt="trash"></img>
-                      </button>
+                        <button onClick={() => handleEditComponent(index)}>
+                          <img src={edit} alt="edit"></img>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteComponent(component.id)}
+                        >
+                          <img src={trash} alt="trash"></img>
+                        </button>
                       </div>
                     </div>
                     <button
@@ -336,7 +402,6 @@ const ConfigureInputsOutputs: React.FC = () => {
           </button>
         </div>
       </div>
-      
     </div>
   );
 };

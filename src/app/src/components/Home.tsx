@@ -32,7 +32,6 @@ const Home: React.FC = () => {
   const [userAvatar, setUserAvatar] = useState("");
 
   useEffect(() => {
-
     const storedRecentTools = localStorage.getItem("recentTools");
     if (storedRecentTools) {
       setRecentTools(JSON.parse(storedRecentTools));
@@ -79,9 +78,12 @@ const Home: React.FC = () => {
   };
 
   const handleImageClick = (componentDefinition: any) => {
-    navigate(`/app/published/` + (componentDefinition.id || componentDefinition.title), {
-      state: { output: componentDefinition },
-    });
+    navigate(
+      `/app/published/` + (componentDefinition.id || componentDefinition.title),
+      {
+        state: { output: componentDefinition },
+      }
+    );
   };
 
   const allConverters: Converter[] = [
@@ -331,7 +333,7 @@ const Home: React.FC = () => {
   const capitalize = (str: string) => {
     if (str.length <= 4) return str.toUpperCase();
     return str.charAt(0).toUpperCase() + str.slice(1);
-  }
+  };
 
   const handleCustomComponentCategoryChange = (category: string) => {
     setCustomComponentCategory(category);
@@ -386,39 +388,41 @@ const Home: React.FC = () => {
       <div className="max-w-screen-xl mx-auto p-4 lg:px-8">
         <div className="sticky top-0 bg-white z-40 pb-3">
           <div className="flex flex-wrap md:justify-between mb-6">
-            <div>
-              <div className="flex items-center">
-                <img src="/microcraft.png" alt="Microcraft" className="w-12 h-12" /> 
-                <h2 className="py-2 text-2xl md:text-3xl lg:text-5xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-pink-500" style={{marginLeft: 20}}>
-                    Microcraft
-                </h2>
-              </div>
-              <h6 className="py-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-pink-500">
-                   <span className="text-xs md:text-3sm lg:text-base">
-                    Apps you wish you had
-                    </span>
-                </h6>
+            <div className="flex gap-5 items-center mx-auto md:mx-0">
+              <img
+                src="/microcraft.png"
+                alt="Microcraft"
+                className="w-10 h-10 lg:w-16 lg:h-16"
+              />
+              <h2 className="flex flex-col py-2 text-2xl md:text-3xl lg:text-5xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-pink-500">
+                Microcraft
+                <span className="text-xs md:text-3sm lg:text-base">
+                  Apps you wish you had
+                </span>
+              </h2>
             </div>
-            <div className="flex gap-3 self-center mx-auto md:mx-0">
+            <div className="flex gap-3 self-center">
               {userName !== "" && (
-                <>
+                <div className="flex gap-3 self-center">
                   <img
                     className="w-12 h-12 rounded-full cursor-pointer transform hover:scale-110 shadow-lg"
                     src={userAvatar}
                     alt={userName}
                     onClick={handleLogin}
                   ></img>
-                  <p className="self-center text-[#092C4C] text-lg xl:text-2xl">
+                  <p className="hidden md:flex self-center text-[#092C4C] text-lg xl:text-xl">
                     <span className="font-bold">Hello!</span> {userName}
                   </p>
-                </>
+                </div>
               )}
               {userName === "" && (
-                <div className="flex gap-3 self-center mx-auto md:mx-0">
+                <div className="flex gap-3 self-center">
                   <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center cursor-pointer transform hover:scale-110 shadow-lg">
-                    <span className="text-gray-600" onClick={handleLogin}>Avatar</span>
+                    <span className="text-gray-600" onClick={handleLogin}>
+                      Avatar
+                    </span>
                   </div>
-                  <p className="self-center text-[#092C4C] text-lg xl:text-2xl">
+                  <p className="hidden md:flex self-center text-[#092C4C] text-lg xl:text-xl">
                     <span className="font-bold">Hello!</span> Guest
                   </p>
                 </div>

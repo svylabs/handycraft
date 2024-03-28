@@ -2,8 +2,8 @@ import React, { useEffect, useState } from "react";
 import flower from "../../photos/flower.png";
 import "./ActionPage.scss";
 import { BASE_API_URL } from "~/components/constants";
-// import { LOCALHOST_API_URL } from "~/components/constants";
 import { redirect } from "react-router-dom";
+import * as d3 from "d3";
 
 interface Output {
   [key: string]: any;
@@ -13,8 +13,10 @@ const ActionPage = ({ output }) => {
   const [components, setComponents] = useState(output);
   const [outputCode, setOutputCode] = useState<Output | string>();
   const [outputFormat, setOutputFormat] = useState<string>("json");
+  const [graphType, setGraphType] = useState<string>("bar");
   const [popup, setPopup] = useState(false);
-  const [data, setData] = useState<{ [key: string]: any}>({});
+  const [data, setData] = useState<{ [key: string]: any }>({});
+  const [graphOutput, setGraphOutput] = useState();
 
   const savedFormDataString = localStorage.getItem("formData");
   const savedFormData = savedFormDataString
@@ -26,6 +28,183 @@ const ActionPage = ({ output }) => {
     setLoadedData(savedFormData);
   }, []);
 
+  useEffect(() => {
+    if (outputFormat === "graph") {
+      renderGraph();
+    }
+  }, [outputFormat, graphOutput, graphType]);
+
+  const renderGraph = () => {
+    d3.select("#graph-container").selectAll("*").remove();
+
+    if (graphOutput && typeof graphOutput === "object") {
+      const svgWidth = 500;
+      const svgHeight = 400;
+      const margin = { top: 20, right: 30, bottom: 50, left: 60 };
+      const graphWidth = svgWidth - margin.left - margin.right;
+      const graphHeight = svgHeight - margin.top - margin.bottom;
+
+      const svg = d3
+        .select("#graph-container")
+        .append("svg")
+        .attr("width", svgWidth)
+        .attr("height", svgHeight);
+
+      const graph = svg
+        .append("g")
+        .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+        // const dataValues = Object.values(graphOutput).map((value) => {
+      //   if (typeof value === "number") {
+      //     return value;
+      //   } else if (typeof value === "boolean") {
+      //     return value ? true : 0;
+      //   } else if (
+      //     !isNaN(parseFloat(value as string)) &&
+      //     isFinite(value as number)
+      //   ) {
+      //     return parseFloat(value as string);
+      //   } else {
+      //     return 0;
+      //   }
+      // });
+
+      const dataValues = Object.values(graphOutput).map((value: any) => {
+        if (typeof value === "number") {
+          return value;
+        } else if (typeof value === "boolean") {
+          return value ? true : 0;
+        } else if (
+          typeof value === "string" &&
+          !isNaN(parseFloat(value)) &&
+          isFinite(parseFloat(value))
+        ) {
+          return parseFloat(value);
+        } else if (
+          Array.isArray(value) &&
+          value.every((item: any) => typeof item === "number")
+        ) {
+          return value.reduce((acc: number, curr: number) => acc + curr, 0);
+        } else if (typeof value === "object" && value !== null) {
+          return Object.values(value).reduce((acc: number, curr: any) => {
+            return acc + (typeof curr === "number" ? curr : 0);
+          }, 0);
+        } else {
+          return 0;
+        }
+      });
+      const dataLabels = Object.keys(graphOutput);
+
+      const xScale = d3
+        .scaleBand()
+        .domain(dataLabels)
+        .range([0, graphWidth])
+        .padding(0.1);
+
+      const yScale = d3
+        .scaleLinear()
+        .domain([0, d3.max(dataValues) || 0])
+        .range([graphHeight, 0]);
+
+      graph
+        .append("g")
+        .attr("transform", `translate(0, ${graphHeight})`)
+        .call(d3.axisBottom(xScale))
+        .selectAll("text")
+        .attr("transform", "rotate(-20)")
+        .style("text-anchor", "end");
+
+      graph
+        .append("g")
+        .call(d3.axisLeft(yScale))
+        .attr("transform", `translate(0, 0)`);
+
+      graph
+        .append("line")
+        .attr("x1", 0)
+        .attr("y1", graphHeight)
+        .attr("x2", graphWidth)
+        .attr("y2", graphHeight)
+        .attr("stroke", "black")
+        .attr("stroke-width", 1);
+
+      if (graphType === "bar") {
+        graph
+          .selectAll("rect")
+          .data(dataValues)
+          .enter()
+          .append("rect")
+          .attr("x", (d, i) => xScale(dataLabels[i]))
+          .attr("y", (d) => yScale(d))
+          .attr("width", xScale.bandwidth())
+          .attr("height", (d) => graphHeight - yScale(d))
+          .attr("fill", "steelblue")
+          .on("mouseover", (event, d) => {
+            d3.select(event.target).attr("fill", "orange");
+            const xPos =
+              parseFloat(d3.select(event.target).attr("x")) +
+              xScale.bandwidth() / 2;
+            const yPos = parseFloat(d3.select(event.target).attr("y")) + 10;
+            graph
+              .append("text")
+              .attr("class", "tooltip")
+              .attr("x", xPos)
+              .attr("y", yPos)
+              .attr("text-anchor", "middle")
+              .text(d)
+              .style("font-size", "12px");
+          })
+          .on("mouseout", (event) => {
+            d3.select(event.target).attr("fill", "steelblue");
+            graph.select(".tooltip").remove();
+          });
+      } else if (graphType === "line") {
+        const line = d3
+          .line()
+          .x((d, i) => xScale(dataLabels[i]) + xScale.bandwidth() / 2)
+          .y((d) => yScale(d))
+          .curve(d3.curveLinear);
+
+        graph
+          .append("path")
+          .datum(dataValues)
+          .attr("fill", "none")
+          .attr("stroke", "steelblue")
+          .attr("stroke-width", 2)
+          .attr("d", line);
+
+        graph
+          .selectAll("circle")
+          .data(dataValues)
+          .enter()
+          .append("circle")
+          .attr("cx", (d, i) => xScale(dataLabels[i]) + xScale.bandwidth() / 2)
+          .attr("cy", (d) => yScale(d))
+          .attr("r", 4)
+          .attr("fill", "steelblue")
+          .on("mouseover", (event, d) => {
+            d3.select(event.target).attr("fill", "orange");
+            const xPos = parseFloat(d3.select(event.target).attr("cx")) + 60;
+            const yPos = parseFloat(d3.select(event.target).attr("cy")) + 10;
+            svg
+              .append("text")
+              .attr("class", "tooltip")
+              .attr("x", xPos)
+              .attr("y", yPos)
+              .attr("text-anchor", "middle")
+              .text(d)
+              .style("font-size", "12px");
+          })
+          .on("mouseout", (event) => {
+            d3.select(event.target).attr("fill", "steelblue");
+            svg.select(".tooltip").remove();
+          });
+      }
+    } else {
+      console.log("Output code is not an object or is undefined.");
+    }
+  };
+
   const handleInputChange = (id: string, value: string) => {
     setData((prevValues) => ({
       ...prevValues,
@@ -33,22 +212,21 @@ const ActionPage = ({ output }) => {
     }));
   };
 
-  const handleRun = async (
-    code: string,
-    data: { [key: string]: string }
-  ) => {
+  const handleRun = async (code: string, data: { [key: string]: string }) => {
     try {
       const result = await eval(code);
       let vals = data;
       if (typeof result === "object") {
-         for (const key in result) {
-           vals[key] = result[key];
-         }
-         setData(vals);
+        for (const key in result) {
+          vals[key] = result[key];
+        }
+        setData(vals);
       }
       console.log(vals);
       console.log(result);
       setOutputCode(vals);
+      setGraphOutput(result);
+      // setOutputCode(result);
     } catch (error) {
       console.log(`Error: ${error}`);
       setOutputCode(`Error: ${error}`);
@@ -105,7 +283,7 @@ const ActionPage = ({ output }) => {
   };
 
   const saveClick = async () => {
-      try {
+    try {
       const response = await fetch(`${BASE_API_URL}/dynamic-component/new`, {
         credentials: "include",
         method: "POST",
@@ -125,6 +303,7 @@ const ActionPage = ({ output }) => {
       }
 
       localStorage.removeItem("formData");
+      localStorage.removeItem("components");
       setPopup(true);
       setTimeout(() => {
         setPopup(false);
@@ -137,23 +316,27 @@ const ActionPage = ({ output }) => {
   };
 
   const goBack = (components) => {
-    const queryParams = new URLSearchParams({
-      components: JSON.stringify(components),
-    });
-    // window.location.href = `${LOCALHOST_API_URL}/converter/configure/configureDetails/configureInputOutput?${queryParams}`;
-    window.location.href = `/app/new?${queryParams}`;
+    // const queryParams = new URLSearchParams({
+    //   components: JSON.stringify(components),
+    // });
+
+    // window.location.href = `/app/new?${queryParams}`;
+
+    window.location.href = `/app/new`;
   };
 
   return (
     <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 shadow-lg rounded-md flex flex-col gap-5 p-2 m-2 mt-3 md:m-5 md:p-5 lg:mt-8 lg:p-6 lg:mx-20 xl:mt-16 xl:mx-40 lg:p- xl:p-12">
       <div className="p-2 md:p-4 bg-gray-100">
         <div className="flex justify-between mb-4">
-          <h1 className="text-xl md:text-2xl font-bold">Showing preview of the {savedFormData.title} app</h1>
+          <h1 className="text-xl md:text-2xl font-bold">
+            Showing preview of the {savedFormData.title} app
+          </h1>
           <button
             className="common-button px-4 py-2 text-white font-semibold bg-blue-500 rounded-md focus:bg-blue-600 focus:outline-none hover:bg-blue-600 hover:shadow-lg transition duration-300"
             onClick={() => goBack(components)}
           >
-            <span className="absolute text-hover text-white font-medium mt-10 -ml-10 px-2 bg-slate-500 p-1 rounded-md z-50">
+            <span className="absolute text-hover text-white font-medium mt-10 -ml-10 mr-2 md:mr-10 lg:-ml-20 px-2 bg-slate-500 p-1 rounded-md z-50">
               Return to edit the app
             </span>
             Back
@@ -184,7 +367,7 @@ const ActionPage = ({ output }) => {
               )}
               {component.type === "button" && component.code && (
                 <button
-                  className="px-4 p-2 mt-2 font-semibold w-full md:w-40 overflow-x-hidden text-white bg-red-500 border border-red-500 rounded hover:bg-red-600 focus:outline-none focus:ring focus:border-red-700"
+                  className="px-4 p-2 mt-2 font-semibold w-full md:w-auto text-white bg-red-500 border border-red-500 rounded hover:bg-red-600 focus:outline-none focus:ring focus:border-red-700"
                   id={component.id}
                   onClick={() => handleRun(component.code!, data)}
                 >
@@ -213,22 +396,61 @@ const ActionPage = ({ output }) => {
           >
             <option value="json">JSON</option>
             <option value="table">Table</option>
+            <option value="graph">Graph</option>
           </select>
         </div>
+
+        {outputFormat === "graph" && (
+          <div className="mb-4">
+            <h2 className="text-xl font-bold">Graph Type:</h2>
+            <div className="flex items-center mt-2">
+              <input
+                type="radio"
+                id="barGraph"
+                name="graphType"
+                value="bar"
+                checked={graphType === "bar"}
+                onChange={() => setGraphType("bar")}
+                className="mr-2"
+              />
+              <label htmlFor="barGraph">Bar Graph</label>
+              <input
+                type="radio"
+                id="lineGraph"
+                name="graphType"
+                value="line"
+                checked={graphType === "line"}
+                onChange={() => setGraphType("line")}
+                className="ml-4 mr-2"
+              />
+              <label htmlFor="lineGraph">Line Graph</label>
+            </div>
+          </div>
+        )}
+
         <div className="mt-4">
           <h2 className="text-xl font-bold">Output:</h2>
-          {outputFormat === "json" ? (
-            <pre className="overflow-auto w-full mt-2 px-4 py-2 bg-gray-100 overflow-x-auto  border border-gray-300 rounded-lg">
-              {/* {JSON.stringify(outputCode, null, 2)} */}
-              {outputCode
-                ? JSON.stringify(outputCode, null, 2)
-                : "No output available"}
-            </pre>
-          ) : (
-            <div className="overflow-auto w-full mt-2 px-4 py-2 bg-gray-100 overflow-x-auto  border border-gray-300 rounded-lg">
-              {formatOutput(outputCode)}
-            </div>
-          )}
+          {
+            outputFormat === "json" ? (
+              <pre className="overflow-auto w-full mt-2 px-4 py-2 bg-gray-100 overflow-x-auto  border border-gray-300 rounded-lg">
+                {outputCode
+                  ? JSON.stringify(outputCode, null, 2)
+                  : "No output available"}
+              </pre>
+            ) : outputFormat === "table" ? (
+              <div className="overflow-auto w-full mt-2 px-4 py-2 bg-gray-100 overflow-x-auto  border border-gray-300 rounded-lg">
+                {formatOutput(outputCode)}
+              </div>
+            ) : outputFormat === "graph" ? (
+              <div
+                id="graph-container"
+                className="overflow-auto w-full mt-2 px-4 py-2 bg-gray-100 overflow-x-auto  border border-gray-300 rounded-lg"
+              ></div>
+            ) : (
+              <div></div>
+            )
+            // : null
+          }
         </div>
       </div>
 
@@ -244,7 +466,8 @@ const ActionPage = ({ output }) => {
               Congratulations!
             </p>
             <p className="lg:text-lg xl:text-xl text-[#85909B] text-center">
-              Fantastic work! Your app has been created and submitted for review.
+              Fantastic work! Your app has been created and submitted for
+              review.
             </p>
             <p className="md:mt-2 text-green-600 text-lg lg:text-xl text-center">
               Keep innovating and sharing your creativity!
