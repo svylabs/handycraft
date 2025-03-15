@@ -52,6 +52,7 @@ const ExternalAppPage = () => {
   const [selectedAppIndex, setSelectedAppIndex] = useState(-1);
   const [dropdownWidth, setDropdownWidth] = useState("18rem");
   const [wasms, setWasms] = useState<{}>({});
+  const [navigationPaths, setNavigationPaths] = useState<{ path: string; name: string }[]>([]);
 
   const isAuthenticated = () => {
     if (localStorage.getItem("userDetails")) {
@@ -112,14 +113,6 @@ const ExternalAppPage = () => {
       return;
     }
     const app = appList.apps[index];
-    // if (app.path.startsWith("https://")) {
-    //   //setExternalAppUrl(app.path);
-    //   console.log("On app selected: loading: ", app.path);
-    //   loadApp(app.path);
-    // } else {
-    //   const slash = externalAppUrl.endsWith("/") ? "" : "/";
-    //   loadApp(externalAppUrl + slash + app.path);
-    // }
     const resolvedPath = app.path.startsWith("https://")
       ? app.path
       : externalAppUrl + (externalAppUrl.endsWith("/") ? "" : "/") + app.path;
@@ -127,7 +120,7 @@ const ExternalAppPage = () => {
     console.log("On app selected: loading: ", resolvedPath);
 
     await loadApp(resolvedPath);
-    
+
     // Update recent apps logic
     const newApp: RecentApp = {
       name: app.name,
@@ -138,16 +131,19 @@ const ExternalAppPage = () => {
       parent: appList.path
     };
     updateRecentApps(newApp);
-    
 
   }
 
   const loadAppList = async (data: any) => {
     if (data.type === 'list') {
       console.log("Loading app list: ", data);
-      
       setAppList(data);
 
+      // Add the list to navigation paths without duplicates
+      const newPath = { path: data.path, name: data.name };
+      if (!navigationPaths.some(nav => nav.path === newPath.path)) {
+        setNavigationPaths(prev => [...prev, newPath]);
+      }
 
       // Update the last used time for the list
       const newList: RecentApp = {
@@ -271,12 +267,6 @@ const ExternalAppPage = () => {
     }
   }
 
-  // const loadAppList = async (data: any) => {
-  //   if (data.type === 'list') {
-  //     setAppList(data);
-  //   }
-  // }
-
   const isEmpty = (str: string | null | undefined) => {
     if (str === undefined || str === null || str === "") {
       return true;
@@ -285,6 +275,7 @@ const ExternalAppPage = () => {
   }
 
   const loadApp = async (appPath?: string, subAppPath?: string) => {
+    setShowRecentApps(false);
     setLoading(true);
     setData({});
     const path = appPath || externalAppUrl;
@@ -318,14 +309,15 @@ const ExternalAppPage = () => {
       if (data.type === 'list') {
         data.path = path;
         await loadAppList(data);
+
         if (subAppPath) {
           console.log("Sub app path: ", subAppPath);
           const subAppIndex = data.apps.findIndex((app: any) => {
-              if (app.path.startsWith("https://")) {
-                return app.path === subAppPath;
-              } else {
-                return subAppPath === path + (path.endsWith("/") ? "" : "/") + app.path;
-              }
+            if (app.path.startsWith("https://")) {
+              return app.path === subAppPath;
+            } else {
+              return subAppPath === path + (path.endsWith("/") ? "" : "/") + app.path;
+            }
           });
           console.log("Sub app index: ", subAppIndex);
           if (subAppIndex != -1) {
@@ -414,6 +406,13 @@ const ExternalAppPage = () => {
         };
         updateRecentApps(newApp);
 
+        // Add the app to navigation paths without duplicates
+        const newPath = { path: path, name: appName };
+        if (!navigationPaths.some(nav => nav.path === newPath.path)) {
+          setNavigationPaths(prev => [...prev, newPath]);
+        }
+
+
       }
     } catch (error) {
       console.error("Error loading external app: ", error);
@@ -447,6 +446,64 @@ const ExternalAppPage = () => {
     return () => window.removeEventListener("resize", adjustDropdownWidth); // Cleanup
   }, []);
 
+//   const resolvePathToName = (path: string) => {
+//     console.log("path:- ",path);
+//   const parts = path.split('/'); // Split the path into parts
+//   console.log("parts:- ", parts);
+//   let currentPath = '';
+//   const hierarchy: string[] = [];
+
+//   // Iterate through each part of the path
+//   for (const part of parts) {
+//     currentPath += currentPath ? `/${part}` : part; // Build the full path
+//     console.log("currentPath:- ", currentPath);
+//     const found = navigationPaths.find(nav => nav.path === currentPath);
+//     console.log("found:- ", found);
+//     if (found) {
+//       hierarchy.push(found.name); // Add to hierarchy if path exists
+//       console.log("hierarchy:- ", hierarchy);
+//     }
+//   }
+
+//   return hierarchy.join(' › '); // Return joined names for display
+// };
+
+const resolvePathToName = (path: string) => {
+  console.log("path:- ", path);
+  const parts = path.split('/'); // Split the path into parts
+  console.log("parts:- ", parts);
+  let currentPath = '';
+  const hierarchy: string[] = [];
+  let lastPushedPath = '';
+
+  for (const part of parts) {
+    currentPath += currentPath ? `/${part}` : part; // Build the full path
+    console.log("currentPath:- ", currentPath);
+    
+    const found = navigationPaths.find(nav => nav.path === currentPath);
+    console.log("found:- ", found);
+    
+    if (found) {
+      if (!lastPushedPath || currentPath.startsWith(lastPushedPath)) {
+        // Add the name to the hierarchy only if it's part of the path
+        hierarchy.push(found.name);
+        lastPushedPath = currentPath; // Update the last pushed path
+        console.log("hierarchy (pushed):- ", hierarchy);
+      } else {
+        // Handle when previous path should be removed
+        hierarchy.splice(-1, 1, found.name); // Replace the last entry
+        lastPushedPath = currentPath;
+        console.log("hierarchy (replaced):- ", hierarchy);
+      }
+    }
+  }
+
+  return hierarchy.join(' › '); // Return joined names for display
+};
+
+
+  console.log("navigationPaths:- ", navigationPaths);
+
   // function submitFeedback() {
   //   setFeedback(false);
   //   window.location.href = "/";
@@ -460,12 +517,10 @@ const ExternalAppPage = () => {
           <div className="relative flex">
             <input
               className="w-full py-2 px-4 rounded border border-gray-300 focus:outline-none focus:border-blue-500 pr-12"
-              // type="text"
               type="url"
               size={80}
               placeholder="Enter github url of the app here"
               value={externalAppUrl}
-              // onChange={(e) => setExternalAppUrl(e.target.value)}
               onChange={(e) => setExternalAppUrl(e.target.value.trim())}
               onFocus={() => {
                 if (recentApps.length > 0) { // Show recent apps only if there are any
@@ -550,6 +605,7 @@ const ExternalAppPage = () => {
           </div>
         </div>
 
+        {/* App List */}
         {(appList.apps?.length > 0) && (
           <AppCarousel name={appList.name} description={appList.description} apps={appList.apps} onAppSelected={onAppSelected} selectedAppIndex={selectedAppIndex} />
         )}
@@ -564,6 +620,54 @@ const ExternalAppPage = () => {
             </div>
           )}
           <div className="px-2 text-wrap">
+            {/* Conditional Navigation Path */}
+            {/* {(appList.type === 'list' || appList.parent) && (
+              <nav className="mb-4 bg-gray-100 p-2 rounded-md shadow-sm" title='Navigation Path'>
+                <div className="flex flex-wrap items-center gap-2 text-sm md:text-base">
+                  {navigationPath.map((item, index) => (
+                    <div key={index} className="flex items-center">
+                      <a
+                        className={`${index < navigationPath.length - 1
+                          ? "text-yellow-600 cursor-pointer hover:underline hover:text-yellow-700"
+                          : "text-yellow-600 cursor-default"
+                          } transition-all duration-300 font-medium`}
+                        onClick={() => index < navigationPath.length - 1 && handleNavigationClick(index)} // Prevent click for the last item
+                        {...(index < navigationPath.length - 1 && { title: `Go to ${item}` })} // Add title only for non-last items
+                      >
+                        {item}
+                      </a>
+                      {index < navigationPath.length - 1 && (
+                        <span className="mx-2 text-gray-600 font-bold">›</span> //&gt;
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </nav>
+            )} */}
+
+            {(appList.type === 'list' || appList.parent) && (
+              <nav className="mb-4 bg-gray-100 p-2 rounded-md shadow-sm" title='Navigation Path'>
+                <div className="flex flex-wrap items-center gap-2 text-sm md:text-base">
+                  {navigationPaths.map((item, index) => (
+                    <div key={index} className="flex items-center">
+                      <a
+                        className={`${index < navigationPaths.length - 1
+                          ? "text-yellow-600 cursor-pointer hover:underline hover:text-yellow-700"
+                          : "text-yellow-600 cursor-default"
+                          } transition-all duration-300 font-medium`}
+                      // onClick={() => index < navigationPaths.length - 1 && handleNavigationClick(index)} // Prevent click for the last item
+                      >
+                        {resolvePathToName(item.path)}
+                      </a>
+                      {index < navigationPaths.length - 1 && (
+                        <span className="mx-2 text-gray-600 font-bold">›</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </nav>
+            )}
+
             <div className="flex flex-col md:flex-row md:justify-between mb-4 md:max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto">
               <h1 className="font-semibold text-lg md:text-xl">{appName}</h1>
               <h3 className="text-sm md:text-base lg:text-lg">{appDescription}</h3>
@@ -584,7 +688,7 @@ const ExternalAppPage = () => {
                 contracts={contracts || []}
                 networks={networks || []}
                 debug={setOutputCode}
-                whitelistedJSElements={{ fetch: fetch.bind(globalThis), alert: alert.bind(globalThis), ...wasms}}
+                whitelistedJSElements={{ fetch: fetch.bind(globalThis), alert: alert.bind(globalThis), ...wasms }}
               />
             )}
           </div>

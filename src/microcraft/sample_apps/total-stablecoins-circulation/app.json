@@ -93,6 +93,7 @@
   "networks": [
     {
       "type": "ethereum",
+      "name": "Ethereum Mainnet",
       "config": {
         "rpcUrl": "https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID",
         "chainId": "1",
@@ -101,6 +102,7 @@
     },
     {
       "type": "polygon",
+      "name": "Polygon Mainnet",
       "config": {
         "rpcUrl": "https://polygon-rpc.com",
         "chainId": "137",
@@ -109,6 +111,7 @@
     },
     {
       "type": "binance-smart-chain",
+      "name": "Binance Smart Chain Mainnet",
       "config": {
         "rpcUrl": "https://bsc-dataseed.binance.org",
         "chainId": "56",
@@ -117,6 +120,7 @@
     },
     {
       "type": "citrea-bitcoin",
+      "name": "Citrea Bitcoin",
       "config": {
         "rpcUrl": "https://citrea-rpc-url.example",
         "chainId": "10001",
@@ -125,6 +129,7 @@
     },
     {
       "type": "citrus-bitcoin",
+      "name": "citrus Bitcoin",
       "config": {
         "rpcUrl": "https://citrus-rpc-url.example",
         "chainId": "10002",
